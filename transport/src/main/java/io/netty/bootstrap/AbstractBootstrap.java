@@ -306,7 +306,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            //ReflectiveChannelfactory->NioServiceSocketChannel
             channel = channelFactory.newChannel();
+            //将child的channelhandler和channelPipeline建立与NioServerSocketChannel的绑定关系
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -352,6 +354,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             @Override
             public void run() {
                 if (regFuture.isSuccess()) {
+                    //channel:NioserviceSocketChannel  promise:PendingRegistrationPromise
                     channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
                 } else {
                     promise.setFailure(regFuture.cause());

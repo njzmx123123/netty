@@ -158,6 +158,47 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(0));
         }
 
+//将adapter放入到NioServerSocketChannel中，等待TCP链路建立时触发initChannel,添加并设置ChannelHandler
+//ChannelPipeline本身就是一个责任链，而实现具体细节的ChannelHandler通过Inbound或者Ourbound(也包含InboundOutbound)
+//通过注册进ChannelPipeline来获取来自EventLoopGroup的回调
+//                                                  I/O Request
+//                                                  via Channel or
+//                                                  ChannelHandlerContext
+//                                                      |
+//  +---------------------------------------------------+---------------+
+//  |                           ChannelPipeline         |               |
+//  |                                                  \|/              |
+//  |    +---------------------+            +-----------+----------+    |
+//  |    | Inbound Handler  N  |            | Outbound Handler  1  |    |
+//  |    +----------+----------+            +-----------+----------+    |
+//  |              /|\                                  |               |
+//  |               |                                  \|/              |
+//  |    +----------+----------+            +-----------+----------+    |
+//  |    | Inbound Handler N-1 |            | Outbound Handler  2  |    |
+//  |    +----------+----------+            +-----------+----------+    |
+//  |              /|\                                  .               |
+//  |               .                                   .               |
+//  | ChannelHandlerContext.fireIN_EVT() ChannelHandlerContext.OUT_EVT()|
+//  |        [ method call]                       [method call]         |
+//  |               .                                   .               |
+//  |               .                                  \|/              |
+//  |    +----------+----------+            +-----------+----------+    |
+//  |    | Inbound Handler  2  |            | Outbound Handler M-1 |    |
+//  |    +----------+----------+            +-----------+----------+    |
+//  |              /|\                                  |               |
+//  |               |                                  \|/              |
+//  |    +----------+----------+            +-----------+----------+    |
+//  |    | Inbound Handler  1  |            | Outbound Handler  M  |    |
+//  |    +----------+----------+            +-----------+----------+    |
+//  |              /|\                                  |               |
+//  +---------------+-----------------------------------+---------------+
+//                  |                                  \|/
+//  +---------------+-----------------------------------+---------------+
+//  |               |                                   |               |
+//  |       [ Socket.read() ]                    [ Socket.write() ]     |
+//  |                                                                   |
+//  |  Netty Internal I/O Threads (Transport Implementation)            |
+//  +-------------------------------------------------------------------+
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) throws Exception {
